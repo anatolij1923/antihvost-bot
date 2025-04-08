@@ -6,3 +6,14 @@ cancel_keyboard = ReplyKeyboardMarkup(
     ],
     resize_keyboard=True
 )
+
+main_menu_keyboard = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="📚 Просмотр лабораторных")],
+        [KeyboardButton(text="📖 Домашние задания")],
+        [KeyboardButton(text="🏆 Рейтинг")],
+        [KeyboardButton(text="🛠 Управление лабораторными")],
+        [KeyboardButton(text="Не нажимать❗❗❗")]
+    ],
+    resize_keyboard=True
+)

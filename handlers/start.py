@@ -1,8 +1,9 @@
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
-from keyboards.main_menu import cancel_keyboard
+from keyboards.main_menu import cancel_keyboard, main_menu_keyboard
 from states.auth_states import AuthStates
+from utils.storage import add_authorized_user
 import re
 
 router = Router()
@@ -27,6 +28,8 @@ async def process_group(message: Message, state: FSMContext):
     data = await state.get_data()
     fullname = data["fullname"]
     group = message.text
+    # Store the user's name in our storage
+    add_authorized_user(message.from_user.id, fullname)
     # Тут будет проверка в БД и сохранение, пока просто выводим
-    await message.answer(f"Вы авторизованы как {fullname} из группы {group}")
+    await message.answer(f"Вы авторизованы как {fullname} из группы {group}", reply_markup=main_menu_keyboard)
     await state.clear()
