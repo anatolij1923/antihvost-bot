@@ -21,14 +21,14 @@ async def process_fullname(message: Message, state: FSMContext):
 
 @router.message(AuthStates.waiting_for_group)
 async def process_group(message: Message, state: FSMContext):
-    group_pattern = r"^ИВТб-130[1-9]-05-00$"
+    group_pattern = r"^ИВТб-[1-4]30[1-7]-0[4-6]-00$"
     if not re.match(group_pattern, message.text):
         await message.answer("Неверный формат группы. Попробуйте снова:")
         return
     data = await state.get_data()
     fullname = data["fullname"]
     group = message.text
-    # Store the user's name in our storage
+    # Cохраняем ися ползователя
     add_authorized_user(message.from_user.id, fullname)
     # Тут будет проверка в БД и сохранение, пока просто выводим
     await message.answer(f"Вы авторизованы как {fullname} из группы {group}", reply_markup=main_menu_keyboard)
