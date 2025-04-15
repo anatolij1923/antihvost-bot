@@ -1,12 +1,13 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
+# кнопка отмены
 cancel_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="Отмена")]
     ],
     resize_keyboard=True
 )
-
+# главное меню
 main_menu_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📚 Просмотр лабораторных")],
