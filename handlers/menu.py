@@ -1,8 +1,8 @@
 from aiogram import Router, F
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from keyboards.main_menu import main_menu_keyboard
 from keyboards.lab_menu import get_assignments_menu_kb
-from keyboards.events_menu import events_menu_keyboard
+from keyboards.events_menu import get_events_menu_kb
 from utils.storage import get_authorized_user_name
 from datetime import datetime
 
@@ -82,6 +82,15 @@ async def handle_management(message: Message):
         reply_markup=get_assignments_menu_kb()
     )
 
+@router.message(F.text == "📅 Мероприятия")
+async def handle_events(message: Message):
+    await message.answer(
+        "Меню мероприятий:\n\n"
+        "• Добавить мероприятие - создание нового мероприятия\n"
+        "• Просмотр мероприятий - список всех мероприятий",
+        reply_markup=get_events_menu_kb()
+    )
+
 @router.message(F.text == "Не нажимать❗❗❗")
 async def handle_danger_button(message: Message):
     name = get_authorized_user_name(message.from_user.id)
@@ -90,24 +99,3 @@ async def handle_danger_button(message: Message):
         f"теперь на твое имя было отправлено заявление об отчислении Репкину Дмитрию Александровичу",
         reply_markup=main_menu_keyboard
     )
-
-@router.message(F.text == "📅 Мероприятия")
-async def handle_events(message: Message):
-    await message.answer(
-        "Меню мероприятий:\n\n"
-        "• Добавить мероприятие - создание нового мероприятия\n"
-        "• Просмотр мероприятий - список всех мероприятий",
-        reply_markup=events_menu_keyboard
-    )
-
-@router.message(F.text == "Добавить мероприятие")
-async def handle_add_event(message: Message):
-    await message.answer("Функционал добавления мероприятий в разработке 🏗", reply_markup=events_menu_keyboard)
-
-@router.message(F.text == "Просмотр мероприятий")
-async def handle_view_events(message: Message):
-    await message.answer("Функционал просмотра мероприятий в разработке 🏗", reply_markup=events_menu_keyboard)
-
-@router.message(F.text == "Назад")
-async def handle_back(message: Message):
-    await message.answer("Главное меню", reply_markup=main_menu_keyboard)

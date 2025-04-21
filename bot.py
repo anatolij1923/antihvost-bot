@@ -1,6 +1,6 @@
 # точка входа - запуск бота
 from aiogram import Bot, Dispatcher
-from handlers import start, menu, assignments
+from handlers import start, menu, assignments, events
 from aiogram.fsm.storage.memory import MemoryStorage
 import asyncio
 import os
@@ -14,6 +14,7 @@ async def main():
     dp.include_router(start.router)
     dp.include_router(menu.router)
     dp.include_router(assignments.router)
+    dp.include_router(events.router)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
