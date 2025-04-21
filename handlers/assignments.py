@@ -94,15 +94,17 @@ async def process_assignment_deadline(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "assignment:list")
 async def list_assignments(callback: CallbackQuery):
-    if not assignments:
+    user_assignments = {k: v for k, v in assignments.items() if v.created_by == callback.from_user.id}
+    
+    if not user_assignments:
         await callback.message.edit_text(
-            "Список заданий пуст!",
+            "У вас пока нет добавленных заданий!",
             reply_markup=get_assignments_menu_kb()
         )
         return
 
-    text = "Список всех заданий:\n\n"
-    for assignment in assignments.values():
+    text = "Список ваших заданий:\n\n"
+    for assignment in user_assignments.values():
         text += (
             f"{'🔬 Лаба' if assignment.type == 'lab' else '📚 ДЗ'}: {assignment.name}\n"
             f"Дедлайн: {assignment.deadline.strftime('%d.%m.%Y %H:%M')}\n"
@@ -119,17 +121,17 @@ async def show_deadlines(callback: CallbackQuery):
     now = datetime.now()
     active_assignments = {
         k: v for k, v in assignments.items()
-        if v.deadline > now
+        if v.deadline > now and v.created_by == callback.from_user.id
     }
     
     if not active_assignments:
         await callback.message.edit_text(
-            "Нет активных дедлайнов!",
+            "У вас нет активных дедлайнов!",
             reply_markup=get_assignments_menu_kb()
         )
         return
 
-    text = "Активные дедлайны:\n\n"
+    text = "Ваши активные дедлайны:\n\n"
     for assignment in sorted(active_assignments.values(), key=lambda x: x.deadline):
         time_left = assignment.deadline - now
         days_left = time_left.days

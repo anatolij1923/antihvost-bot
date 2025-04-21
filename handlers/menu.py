@@ -12,12 +12,12 @@ router = Router()
 async def handle_labs_view(message: Message):
     from handlers.assignments import assignments  # импортируем словарь с заданиями
     
-    labs = {k: v for k, v in assignments.items() if v.type == 'lab'}
+    labs = {k: v for k, v in assignments.items() if v.type == 'lab' and v.created_by == message.from_user.id}
     if not labs:
-        await message.answer("Пока нет добавленных лабораторных работ!", reply_markup=main_menu_keyboard)
+        await message.answer("У вас пока нет добавленных лабораторных работ!", reply_markup=main_menu_keyboard)
         return
 
-    text = "📚 Список лабораторных работ:\n\n"
+    text = "📚 Список ваших лабораторных работ:\n\n"
     now = datetime.now()
     
     for lab in sorted(labs.values(), key=lambda x: x.deadline):
@@ -42,12 +42,12 @@ async def handle_labs_view(message: Message):
 async def handle_homework(message: Message):
     from handlers.assignments import assignments  # импортируем словарь с заданиями
     
-    homeworks = {k: v for k, v in assignments.items() if v.type == 'homework'}
+    homeworks = {k: v for k, v in assignments.items() if v.type == 'homework' and v.created_by == message.from_user.id}
     if not homeworks:
-        await message.answer("Пока нет добавленных домашних заданий!", reply_markup=main_menu_keyboard)
+        await message.answer("У вас пока нет добавленных домашних заданий!", reply_markup=main_menu_keyboard)
         return
 
-    text = "📖 Список домашних заданий:\n\n"
+    text = "📖 Список ваших домашних заданий:\n\n"
     now = datetime.now()
     
     for hw in sorted(homeworks.values(), key=lambda x: x.deadline):
