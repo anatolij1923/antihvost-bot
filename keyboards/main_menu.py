@@ -14,6 +14,7 @@ main_menu_keyboard = ReplyKeyboardMarkup(
         [KeyboardButton(text="📖 Домашние задания")],
         [KeyboardButton(text="🏆 Рейтинг")],
         [KeyboardButton(text="🛠 Управление лабораторными")],
+        [KeyboardButton(text="📅 Мероприятия")],
         [KeyboardButton(text="Не нажимать❗❗❗")]
     ],
     resize_keyboard=True
