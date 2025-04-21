@@ -2,6 +2,7 @@
 from aiogram import Bot, Dispatcher
 from handlers import start, menu, assignments, events
 from aiogram.fsm.storage.memory import MemoryStorage
+from middlewares.auth import AuthMiddleware
 import asyncio
 import os
 from dotenv import load_dotenv
@@ -11,6 +12,9 @@ load_dotenv()
 async def main():
     bot = Bot(token=os.getenv("BOT_TOKEN"))
     dp = Dispatcher(storage=MemoryStorage())
+    
+    dp.message.middleware(AuthMiddleware())
+    
     dp.include_router(start.router)
     dp.include_router(menu.router)
     dp.include_router(assignments.router)

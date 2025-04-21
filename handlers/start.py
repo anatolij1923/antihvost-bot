@@ -5,11 +5,20 @@ from keyboards.main_menu import cancel_keyboard, main_menu_keyboard
 from states.auth_states import AuthStates
 from utils.storage import add_authorized_user
 import re
+from aiogram.filters import Command
+from middlewares.auth import authorize_user, is_user_authorized
 
 router = Router()
 
-@router.message(F.text == "/start")
+@router.message(Command("start"))
 async def start_handler(message: Message, state: FSMContext):
+    # Если пользователь уже авторизован, показываем главное меню
+    if is_user_authorized(message.from_user.id):
+        await message.answer("Вы уже авторизованы. Используйте /menu для перехода в главное меню.", 
+                           reply_markup=main_menu_keyboard)
+        return
+    
+    # Если не авторизован, начинаем процесс авторизации
     await message.answer("Введите ваше ФИО:", reply_markup=cancel_keyboard)
     await state.set_state(AuthStates.waiting_for_fullname)
 
@@ -28,8 +37,9 @@ async def process_group(message: Message, state: FSMContext):
     data = await state.get_data()
     fullname = data["fullname"]
     group = message.text
-    # Cохраняем ися ползователя
+    # Сохраняем пользователя
     add_authorized_user(message.from_user.id, fullname)
-    # Тут будет проверка в БД и сохранение, пока просто выводим
+    # Авторизуем пользователя
+    authorize_user(message.from_user.id)
     await message.answer(f"Вы авторизованы как {fullname} из группы {group}", reply_markup=main_menu_keyboard)
     await state.clear()
