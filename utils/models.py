@@ -1,7 +1,14 @@
 from datetime import datetime
 from typing import Optional
 from dataclasses import dataclass
+from enum import Enum
 import uuid
+
+class AssignmentStatus(Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    SUBMITTED = "submitted"
 
 @dataclass
 class Assignment:
@@ -11,7 +18,8 @@ class Assignment:
     description: str
     deadline: datetime
     created_at: datetime
-    created_by: int  # ID пользователя, создавшего задание 
+    created_by: int  # ID пользователя, создавшего задание
+    status: AssignmentStatus = AssignmentStatus.NOT_STARTED  # Статус выполнения задания
 
 class Event:
     def __init__(self, id: str, name: str, description: str, date: datetime, created_at: datetime, created_by: int):
