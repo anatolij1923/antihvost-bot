@@ -1,10 +1,11 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from keyboards.main_menu import main_menu_keyboard
-from keyboards.lab_menu import get_assignments_menu_kb
+from keyboards.lab_menu import get_assignments_menu_kb, get_status_text
 from keyboards.events_menu import get_events_menu_kb
 from utils.storage import get_authorized_user_name
 from datetime import datetime
+from handlers.assignments import AssignmentStatus
 
 router = Router()
 
@@ -22,13 +23,21 @@ async def handle_labs_view(message: Message):
     
     for lab in sorted(labs.values(), key=lambda x: x.deadline):
         time_left = lab.deadline - now
-        status = "✅ Активно" if time_left.total_seconds() > 0 else "❌ Просрочено"
+        deadline_status = "✅ Активно" if time_left.total_seconds() > 0 else "❌ Просрочено"
         days_left = time_left.days
         hours_left = time_left.seconds // 3600
         
+        status_emoji = {
+            AssignmentStatus.NOT_STARTED: "⏳",
+            AssignmentStatus.IN_PROGRESS: "🔄",
+            AssignmentStatus.COMPLETED: "✅",
+            AssignmentStatus.SUBMITTED: "📤"
+        }[lab.status]
+        
         text += (
             f"🔬 {lab.name}\n"
-            f"Статус: {status}\n"
+            f"Статус дедлайна: {deadline_status}\n"
+            f"Статус работы: {status_emoji} {get_status_text(lab.status)}\n"
             f"Описание: {lab.description}\n"
             f"Дедлайн: {lab.deadline.strftime('%d.%m.%Y %H:%M')}\n"
         )
