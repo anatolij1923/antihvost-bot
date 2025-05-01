@@ -20,6 +20,7 @@ class Assignment:
     created_at: datetime
     created_by: int  # ID пользователя, создавшего задание
     status: AssignmentStatus = AssignmentStatus.NOT_STARTED  # Статус выполнения задания
+    subject: str = None  # Предмет (только для лабораторных работ)
 
 class Event:
     def __init__(self, id: str, name: str, description: str, date: datetime, created_at: datetime, created_by: int):

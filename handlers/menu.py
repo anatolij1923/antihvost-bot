@@ -1,7 +1,7 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from keyboards.main_menu import main_menu_keyboard
-from keyboards.lab_menu import get_assignments_menu_kb, get_status_text
+from keyboards.lab_menu import get_assignments_menu_kb, get_status_text, get_subject_name
 from keyboards.events_menu import get_events_menu_kb
 from utils.storage import get_authorized_user_name
 from datetime import datetime
@@ -34,11 +34,14 @@ async def handle_labs_view(message: Message):
             AssignmentStatus.SUBMITTED: "📤"
         }[lab.status]
         
+        subject_text = f"Предмет: {get_subject_name(lab.subject)}\n" if lab.subject else ""
+        
         text += (
             f"🔬 {lab.name}\n"
+            f"{subject_text}"
+            f"Описание: {lab.description}\n"
             f"Статус дедлайна: {deadline_status}\n"
             f"Статус работы: {status_emoji} {get_status_text(lab.status)}\n"
-            f"Описание: {lab.description}\n"
             f"Дедлайн: {lab.deadline.strftime('%d.%m.%Y %H:%M')}\n"
         )
         if time_left.total_seconds() > 0:

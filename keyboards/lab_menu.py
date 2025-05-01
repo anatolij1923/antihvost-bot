@@ -2,6 +2,15 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from utils.models import AssignmentStatus
 
+SUBJECT_NAMES = {
+    "programming": "Программирование",
+    "informatics": "Информатика",
+    "discrete_math": "Дискретная математика"
+}
+
+def get_subject_name(subject_code: str) -> str:
+    return SUBJECT_NAMES.get(subject_code, subject_code)
+
 def get_assignment_type_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.add(
@@ -78,5 +87,15 @@ def get_assignment_list_kb(assignments: dict) -> InlineKeyboardMarkup:
             )
         )
     builder.add(InlineKeyboardButton(text="Назад", callback_data="menu:back"))
+    builder.adjust(1)
+    return builder.as_markup()
+
+def get_subject_choice_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.add(
+        InlineKeyboardButton(text=SUBJECT_NAMES["programming"], callback_data="subject:programming"),
+        InlineKeyboardButton(text=SUBJECT_NAMES["informatics"], callback_data="subject:informatics"),
+        InlineKeyboardButton(text=SUBJECT_NAMES["discrete_math"], callback_data="subject:discrete_math")
+    )
     builder.adjust(1)
     return builder.as_markup()

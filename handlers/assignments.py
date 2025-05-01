@@ -11,7 +11,9 @@ from keyboards.lab_menu import (
     get_assignments_menu_kb,
     get_assignment_actions_kb,
     get_status_choice_kb,
-    get_assignment_list_kb
+    get_assignment_list_kb,
+    get_subject_choice_kb,
+    get_subject_name
 )
 from utils.models import Assignment, AssignmentStatus
 
@@ -49,8 +51,26 @@ async def process_assignment_type(callback: CallbackQuery, state: FSMContext):
     assignment_type = callback.data.split(":")[1]
     await state.update_data(type=assignment_type)
     
+    if assignment_type == "lab":
+        await callback.message.edit_text(
+            "Выберите предмет:",
+            reply_markup=get_subject_choice_kb()
+        )
+        await state.set_state(AssignmentStates.choosing_subject)
+    else:
+        await callback.message.edit_text(
+            "Введите название задания:",
+            reply_markup=None
+        )
+        await state.set_state(AssignmentStates.entering_name)
+
+@router.callback_query(StateFilter(AssignmentStates.choosing_subject))
+async def process_subject_choice(callback: CallbackQuery, state: FSMContext):
+    subject = callback.data.split(":")[1]
+    await state.update_data(subject=subject)
+    
     await callback.message.edit_text(
-        "Введите название задания:",
+        "Введите название лабораторной работы:",
         reply_markup=None
     )
     await state.set_state(AssignmentStates.entering_name)
@@ -83,14 +103,18 @@ async def process_assignment_deadline(message: Message, state: FSMContext):
             description=data["description"],
             deadline=deadline,
             created_at=datetime.now(),
-            created_by=message.from_user.id
+            created_by=message.from_user.id,
+            subject=data.get("subject", None)
         )
         
         assignments[assignment.id] = assignment
         
+        subject_text = f"Предмет: {data['subject'].replace('_', ' ').title()}\n" if data.get("subject") else ""
+        
         await message.answer(
             f"Задание успешно добавлено!\n\n"
             f"Тип: {'Лабораторная работа' if assignment.type == 'lab' else 'Домашнее задание'}\n"
+            f"{subject_text}"
             f"Название: {assignment.name}\n"
             f"Дедлайн: {assignment.deadline.strftime('%d.%m.%Y %H:%M')}",
             reply_markup=get_assignments_menu_kb()
@@ -156,11 +180,14 @@ async def view_assignment(callback: CallbackQuery):
         AssignmentStatus.SUBMITTED: "📤"
     }[assignment.status]
     
+    subject_text = f"Предмет: {get_subject_name(assignment.subject)}\n" if assignment.subject else ""
+    
     text = (
         f"{'🔬 Лаба' if assignment.type == 'lab' else '📚 ДЗ'}: {assignment.name}\n"
+        f"{subject_text}"
+        f"Описание: {assignment.description}\n"
         f"Дедлайн: {assignment.deadline.strftime('%d.%m.%Y %H:%M')}\n"
-        f"Статус: {status_emoji} {get_status_text(assignment.status)}\n"
-        f"Описание: {assignment.description}\n\n"
+        f"Статус: {status_emoji} {get_status_text(assignment.status)}\n\n"
         f"Выберите действие:"
     )
     
@@ -215,8 +242,12 @@ async def show_deadlines(callback: CallbackQuery):
             AssignmentStatus.SUBMITTED: "📤"
         }[assignment.status]
         
+        subject_text = f"Предмет: {get_subject_name(assignment.subject)}\n" if assignment.subject else ""
+        
         text += (
             f"{'🔬 Лаба' if assignment.type == 'lab' else '📚 ДЗ'}: {assignment.name}\n"
+            f"{subject_text}"
+            f"Описание: {assignment.description}\n"
             f"Дедлайн: {assignment.deadline.strftime('%d.%m.%Y %H:%M')}\n"
             f"Статус: {status_emoji} {get_status_text(assignment.status)}\n"
             f"Осталось: {days_left}д {hours_left}ч\n\n"
