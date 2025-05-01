@@ -3,6 +3,7 @@ from aiogram import Bot, Dispatcher
 from handlers import start, menu, assignments, events
 from aiogram.fsm.storage.memory import MemoryStorage
 from middlewares.auth import AuthMiddleware
+from database.db import init_db
 import asyncio
 import os
 from dotenv import load_dotenv
@@ -10,6 +11,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 async def main():
+    # Инициализация базы данных
+    init_db()
+    
     bot = Bot(token=os.getenv("BOT_TOKEN"))
     dp = Dispatcher(storage=MemoryStorage())
     

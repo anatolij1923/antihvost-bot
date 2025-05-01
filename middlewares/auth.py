@@ -3,9 +3,7 @@ from aiogram.types import Message
 from typing import Dict, Any, Callable, Awaitable
 from aiogram.fsm.context import FSMContext
 from states.auth_states import AuthStates
-
-# Временное хранилище для авторизованных пользователей
-authorized_users = set()
+from database.db import get_connection, get_user_fullname
 
 class AuthMiddleware(BaseMiddleware):
     async def __call__(
@@ -24,7 +22,7 @@ class AuthMiddleware(BaseMiddleware):
         # 1. Пользователь авторизован
         # 2. Это команда /start
         # 3. Пользователь находится в процессе авторизации
-        if (user_id in authorized_users or 
+        if (is_user_authorized(user_id) or 
             event.text and event.text.startswith('/start') or 
             current_state in [AuthStates.waiting_for_fullname, AuthStates.waiting_for_group]):
             return await handler(event, data)
@@ -33,10 +31,37 @@ class AuthMiddleware(BaseMiddleware):
         await event.answer("Пожалуйста, авторизуйтесь с помощью команды /start")
         return
 
-# Функция для авторизации пользователя
-def authorize_user(user_id: int):
-    authorized_users.add(user_id)
+def authorize_user(user_id: int, username: str = None, first_name: str = None, last_name: str = None, fullname: str = None, group_name: str = None):
+    """Авторизует пользователя и сохраняет его данные в базу данных"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Проверяем, существует ли пользователь
+    cursor.execute('SELECT user_id FROM users WHERE user_id = ?', (user_id,))
+    if not cursor.fetchone():
+        # Если пользователь не существует, добавляем его
+        cursor.execute('''
+        INSERT INTO users (user_id, username, first_name, last_name, fullname, group_name)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ''', (user_id, username, first_name, last_name, fullname, group_name))
+    else:
+        # Если пользователь существует, обновляем его данные
+        cursor.execute('''
+        UPDATE users 
+        SET username = ?, first_name = ?, last_name = ?, fullname = ?, group_name = ?
+        WHERE user_id = ?
+        ''', (username, first_name, last_name, fullname, group_name, user_id))
+    
+    conn.commit()
+    conn.close()
 
-# Функция для проверки, авторизован ли пользователь
 def is_user_authorized(user_id: int) -> bool:
-    return user_id in authorized_users 
+    """Проверяет, авторизован ли пользователь"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT user_id FROM users WHERE user_id = ?', (user_id,))
+    is_authorized = cursor.fetchone() is not None
+    
+    conn.close()
+    return is_authorized 

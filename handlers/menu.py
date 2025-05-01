@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from keyboards.main_menu import main_menu_keyboard
 from keyboards.lab_menu import get_assignments_menu_kb, get_status_text, get_subject_name
 from keyboards.events_menu import get_events_menu_kb
-from utils.storage import get_authorized_user_name
+from database.db import get_user_fullname
 from datetime import datetime
 from handlers.assignments import AssignmentStatus
 
@@ -99,15 +99,11 @@ async def handle_events(message: Message):
     await message.answer(
         "Меню мероприятий:\n\n"
         "• Добавить мероприятие - создание нового мероприятия\n"
-        "• Просмотр мероприятий - список всех мероприятий",
+        "• Список мероприятий - просмотр всех мероприятий\n"
+        "• Ближайшие мероприятия - просмотр предстоящих мероприятий",
         reply_markup=get_events_menu_kb()
     )
 
 @router.message(F.text == "Не нажимать❗❗❗")
 async def handle_danger_button(message: Message):
-    name = get_authorized_user_name(message.from_user.id)
-    await message.answer(
-        f"Поздравляем 🥳🥳🥳. {name}, тебе русским языком было сказано \"Не нажимать\", "
-        f"теперь на твое имя было отправлено заявление об отчислении Репкину Дмитрию Александровичу",
-        reply_markup=main_menu_keyboard
-    )
+    await message.answer("⚠️ Внимание! Эта кнопка находится в разработке. Пожалуйста, не нажимайте на нее.", reply_markup=main_menu_keyboard)
