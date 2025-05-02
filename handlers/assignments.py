@@ -1,7 +1,8 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardButton
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from datetime import datetime
 import uuid
 
@@ -16,11 +17,9 @@ from keyboards.lab_menu import (
     get_subject_name
 )
 from utils.models import Assignment, AssignmentStatus
+from database.db import add_assignment, get_user_assignments, update_assignment_status, delete_assignment
 
 router = Router()
-
-# Временное хранилище заданий (в реальном проекте лучше использовать базу данных)
-assignments = {}
 
 def get_status_text(status: AssignmentStatus) -> str:
     status_texts = {
@@ -96,27 +95,24 @@ async def process_assignment_deadline(message: Message, state: FSMContext):
         deadline = datetime.strptime(message.text, "%d.%m.%Y %H:%M")
         data = await state.get_data()
         
-        assignment = Assignment(
-            id=str(uuid.uuid4()),
-            type=data["type"],
-            name=data["name"],
+        # Добавляем задание в базу данных
+        add_assignment(
+            user_id=message.from_user.id,
+            title=data["name"],
             description=data["description"],
-            deadline=deadline,
-            created_at=datetime.now(),
-            created_by=message.from_user.id,
-            subject=data.get("subject", None)
+            due_date=deadline,
+            assignment_type=data["type"],
+            subject=data.get("subject")
         )
-        
-        assignments[assignment.id] = assignment
         
         subject_text = f"Предмет: {data['subject'].replace('_', ' ').title()}\n" if data.get("subject") else ""
         
         await message.answer(
             f"Задание успешно добавлено!\n\n"
-            f"Тип: {'Лабораторная работа' if assignment.type == 'lab' else 'Домашнее задание'}\n"
+            f"Тип: {'Лабораторная работа' if data['type'] == 'lab' else 'Домашнее задание'}\n"
             f"{subject_text}"
-            f"Название: {assignment.name}\n"
-            f"Дедлайн: {assignment.deadline.strftime('%d.%m.%Y %H:%M')}",
+            f"Название: {data['name']}\n"
+            f"Дедлайн: {deadline.strftime('%d.%m.%Y %H:%M')}",
             reply_markup=get_assignments_menu_kb()
         )
         await state.clear()
@@ -127,67 +123,36 @@ async def process_assignment_deadline(message: Message, state: FSMContext):
             "Например: 31.12.2024 23:59"
         )
 
-@router.callback_query(F.data.startswith("assignment:change_status:"))
-async def change_assignment_status(callback: CallbackQuery):
-    assignment_id = callback.data.split(":")[2]
-    assignment = assignments.get(assignment_id)
-    
-    if not assignment:
-        await callback.answer("Задание не найдено!")
-        return
-    
-    await callback.message.edit_text(
-        f"Выберите новый статус для задания '{assignment.name}':",
-        reply_markup=get_status_choice_kb(assignment_id)
-    )
-
-@router.callback_query(F.data.startswith("status:"))
-async def process_status_change(callback: CallbackQuery):
-    status, assignment_id = callback.data.split(":")[1], callback.data.split(":")[2]
-    assignment = assignments.get(assignment_id)
-    
-    if not assignment:
-        await callback.answer("Задание не найдено!")
-        return
-    
-    assignment.status = AssignmentStatus(status)
-    
-    status_emoji = {
-        AssignmentStatus.NOT_STARTED: "⏳",
-        AssignmentStatus.IN_PROGRESS: "🔄",
-        AssignmentStatus.COMPLETED: "✅",
-        AssignmentStatus.SUBMITTED: "📤"
-    }[assignment.status]
-    
-    await callback.message.edit_text(
-        f"Статус задания '{assignment.name}' изменен на {status_emoji} {get_status_text(assignment.status)}",
-        reply_markup=get_assignment_actions_kb(assignment_id)
-    )
-
 @router.callback_query(F.data.startswith("assignment:view:"))
 async def view_assignment(callback: CallbackQuery):
-    assignment_id = callback.data.split(":")[2]
-    assignment = assignments.get(assignment_id)
+    assignment_id = int(callback.data.split(":")[2])
+    assignments = get_user_assignments(callback.from_user.id)
+    assignment = next((a for a in assignments if a[0] == assignment_id), None)
     
     if not assignment:
         await callback.answer("Задание не найдено!")
         return
     
+    try:
+        status = AssignmentStatus(assignment[5])
+    except ValueError:
+        status = AssignmentStatus.NOT_STARTED
+        
     status_emoji = {
         AssignmentStatus.NOT_STARTED: "⏳",
         AssignmentStatus.IN_PROGRESS: "🔄",
         AssignmentStatus.COMPLETED: "✅",
         AssignmentStatus.SUBMITTED: "📤"
-    }[assignment.status]
+    }[status]
     
-    subject_text = f"Предмет: {get_subject_name(assignment.subject)}\n" if assignment.subject else ""
+    subject_text = f"Предмет: {get_subject_name(assignment[7])}\n" if assignment[7] else ""
     
     text = (
-        f"{'🔬 Лаба' if assignment.type == 'lab' else '📚 ДЗ'}: {assignment.name}\n"
+        f"{'🔬 Лаба' if assignment[6] == 'lab' else '📚 ДЗ'}: {assignment[2]}\n"
         f"{subject_text}"
-        f"Описание: {assignment.description}\n"
-        f"Дедлайн: {assignment.deadline.strftime('%d.%m.%Y %H:%M')}\n"
-        f"Статус: {status_emoji} {get_status_text(assignment.status)}\n\n"
+        f"Описание: {assignment[3]}\n"
+        f"Дедлайн: {datetime.strptime(assignment[4], '%Y-%m-%d %H:%M:%S').strftime('%d.%m.%Y %H:%M')}\n"
+        f"Статус: {status_emoji} {get_status_text(status)}\n\n"
         f"Выберите действие:"
     )
     
@@ -196,31 +161,44 @@ async def view_assignment(callback: CallbackQuery):
         reply_markup=get_assignment_actions_kb(assignment_id)
     )
 
-@router.callback_query(F.data == "assignment:list")
-async def list_assignments(callback: CallbackQuery):
-    user_assignments = {k: v for k, v in assignments.items() if v.created_by == callback.from_user.id}
-    
-    if not user_assignments:
-        await callback.message.edit_text(
-            "У вас пока нет добавленных заданий!",
-            reply_markup=get_assignments_menu_kb()
-        )
-        return
+@router.callback_query(F.data.startswith("assignment:change_status:"))
+async def change_assignment_status(callback: CallbackQuery):
+    assignment_id = int(callback.data.split(":")[2])
+    await callback.message.edit_text(
+        "Выберите новый статус:",
+        reply_markup=get_status_choice_kb(assignment_id)
+    )
 
-    text = "Выберите задание для просмотра:"
+@router.callback_query(F.data.startswith("status:"))
+async def process_status_change(callback: CallbackQuery):
+    status, assignment_id = callback.data.split(":")[1:]
+    assignment_id = int(assignment_id)
+    
+    # Обновляем статус в базе данных
+    update_assignment_status(assignment_id, callback.from_user.id, status)
     
     await callback.message.edit_text(
-        text,
-        reply_markup=get_assignment_list_kb(user_assignments)
+        "Статус успешно обновлен!",
+        reply_markup=get_assignments_menu_kb()
+    )
+
+@router.callback_query(F.data.startswith("assignment:delete:"))
+async def delete_assignment_handler(callback: CallbackQuery):
+    assignment_id = int(callback.data.split(":")[2])
+    
+    # Удаляем задание из базы данных
+    delete_assignment(assignment_id, callback.from_user.id)
+    
+    await callback.message.edit_text(
+        "Задание успешно удалено!",
+        reply_markup=get_assignments_menu_kb()
     )
 
 @router.callback_query(F.data == "assignment:deadlines")
 async def show_deadlines(callback: CallbackQuery):
     now = datetime.now()
-    active_assignments = {
-        k: v for k, v in assignments.items()
-        if v.deadline > now and v.created_by == callback.from_user.id
-    }
+    assignments = get_user_assignments(callback.from_user.id)
+    active_assignments = [a for a in assignments if datetime.strptime(a[4], '%Y-%m-%d %H:%M:%S') > now]
     
     if not active_assignments:
         await callback.message.edit_text(
@@ -230,30 +208,74 @@ async def show_deadlines(callback: CallbackQuery):
         return
 
     text = "Ваши активные дедлайны:\n\n"
-    for assignment in sorted(active_assignments.values(), key=lambda x: x.deadline):
-        time_left = assignment.deadline - now
+    for assignment in sorted(active_assignments, key=lambda x: datetime.strptime(x[4], '%Y-%m-%d %H:%M:%S')):
+        time_left = datetime.strptime(assignment[4], '%Y-%m-%d %H:%M:%S') - now
         days_left = time_left.days
         hours_left = time_left.seconds // 3600
         
+        try:
+            status = AssignmentStatus(assignment[5])
+        except ValueError:
+            status = AssignmentStatus.NOT_STARTED
+            
         status_emoji = {
             AssignmentStatus.NOT_STARTED: "⏳",
             AssignmentStatus.IN_PROGRESS: "🔄",
             AssignmentStatus.COMPLETED: "✅",
             AssignmentStatus.SUBMITTED: "📤"
-        }[assignment.status]
+        }[status]
         
-        subject_text = f"Предмет: {get_subject_name(assignment.subject)}\n" if assignment.subject else ""
+        subject_text = f"Предмет: {get_subject_name(assignment[7])}\n" if assignment[7] else ""
         
         text += (
-            f"{'🔬 Лаба' if assignment.type == 'lab' else '📚 ДЗ'}: {assignment.name}\n"
+            f"{'🔬 Лаба' if assignment[6] == 'lab' else '📚 ДЗ'}: {assignment[2]}\n"
             f"{subject_text}"
-            f"Описание: {assignment.description}\n"
-            f"Дедлайн: {assignment.deadline.strftime('%d.%m.%Y %H:%M')}\n"
-            f"Статус: {status_emoji} {get_status_text(assignment.status)}\n"
+            f"Описание: {assignment[3]}\n"
+            f"Дедлайн: {datetime.strptime(assignment[4], '%Y-%m-%d %H:%M:%S').strftime('%d.%m.%Y %H:%M')}\n"
+            f"Статус: {status_emoji} {get_status_text(status)}\n"
             f"Осталось: {days_left}д {hours_left}ч\n\n"
         )
     
     await callback.message.edit_text(
         text,
         reply_markup=get_assignments_menu_kb()
+    )
+
+@router.callback_query(F.data == "assignment:list")
+async def show_assignments_list(callback: CallbackQuery):
+    assignments = get_user_assignments(callback.from_user.id)
+    if not assignments:
+        await callback.message.edit_text(
+            "У вас пока нет добавленных заданий!",
+            reply_markup=get_assignments_menu_kb()
+        )
+        return
+
+    builder = InlineKeyboardBuilder()
+    for assignment in sorted(assignments, key=lambda x: datetime.strptime(x[4], '%Y-%m-%d %H:%M:%S')):
+        try:
+            status = AssignmentStatus(assignment[5])
+        except ValueError:
+            status = AssignmentStatus.NOT_STARTED
+            
+        status_emoji = {
+            AssignmentStatus.NOT_STARTED: "⏳",
+            AssignmentStatus.IN_PROGRESS: "🔄",
+            AssignmentStatus.COMPLETED: "✅",
+            AssignmentStatus.SUBMITTED: "📤"
+        }[status]
+        
+        builder.add(
+            InlineKeyboardButton(
+                text=f"{'🔬' if assignment[6] == 'lab' else '📚'} {assignment[2]} - {status_emoji} {get_status_text(status)}",
+                callback_data=f"assignment:view:{assignment[0]}"
+            )
+        )
+    
+    builder.add(InlineKeyboardButton(text="Назад", callback_data="menu:back"))
+    builder.adjust(1)
+    
+    await callback.message.edit_text(
+        "Выберите задание для просмотра и изменения статуса:",
+        reply_markup=builder.as_markup()
     ) 

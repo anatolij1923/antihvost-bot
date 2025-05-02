@@ -8,12 +8,9 @@ import uuid
 from states.event_states import EventStates
 from keyboards.events_menu import get_events_menu_kb, get_event_actions_kb
 from keyboards.main_menu import main_menu_keyboard
-from utils.models import Event
+from database.db import add_event, get_user_events, update_event, delete_event
 
 router = Router()
-
-# Временное хранилище мероприятий (в реальном проекте лучше использовать базу данных)
-events = {}
 
 @router.callback_query(F.data == "event:add")
 async def start_event_adding(callback: CallbackQuery, state: FSMContext):
@@ -48,22 +45,19 @@ async def process_event_date(message: Message, state: FSMContext):
         date = datetime.strptime(message.text, "%d.%m.%Y %H:%M")
         data = await state.get_data()
         
-        event = Event(
-            id=str(uuid.uuid4()),
-            name=data["name"],
+        # Добавляем мероприятие в базу данных
+        add_event(
+            user_id=message.from_user.id,
+            title=data["name"],
             description=data["description"],
-            date=date,
-            created_at=datetime.now(),
-            created_by=message.from_user.id
+            event_date=date
         )
-        
-        events[event.id] = event
         
         await message.answer(
             f"Мероприятие успешно добавлено!\n\n"
-            f"Название: {event.name}\n"
-            f"Описание: {event.description}\n"
-            f"Дата: {event.date.strftime('%d.%m.%Y %H:%M')}",
+            f"Название: {data['name']}\n"
+            f"Описание: {data['description']}\n"
+            f"Дата: {date.strftime('%d.%m.%Y %H:%M')}",
             reply_markup=get_events_menu_kb()
         )
         await state.clear()
@@ -76,9 +70,9 @@ async def process_event_date(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "event:list")
 async def list_events(callback: CallbackQuery):
-    user_events = {k: v for k, v in events.items() if v.created_by == callback.from_user.id}
+    events = get_user_events(callback.from_user.id)
     
-    if not user_events:
+    if not events:
         await callback.message.edit_text(
             "У вас пока нет добавленных мероприятий!",
             reply_markup=get_events_menu_kb()
@@ -88,17 +82,17 @@ async def list_events(callback: CallbackQuery):
     text = "📅 Ваши мероприятия:\n\n"
     now = datetime.now()
     
-    for event in sorted(user_events.values(), key=lambda x: x.date):
-        time_left = event.date - now
+    for event in sorted(events, key=lambda x: datetime.strptime(x[4], '%Y-%m-%d %H:%M:%S')):
+        time_left = datetime.strptime(event[4], '%Y-%m-%d %H:%M:%S') - now
         status = "✅ Активно" if time_left.total_seconds() > 0 else "❌ Прошло"
         days_left = time_left.days
         hours_left = time_left.seconds // 3600
         
         text += (
-            f"📌 {event.name}\n"
+            f"📌 {event[2]}\n"
             f"Статус: {status}\n"
-            f"Описание: {event.description}\n"
-            f"Дата: {event.date.strftime('%d.%m.%Y %H:%M')}\n"
+            f"Описание: {event[3]}\n"
+            f"Дата: {datetime.strptime(event[4], '%Y-%m-%d %H:%M:%S').strftime('%d.%m.%Y %H:%M')}\n"
         )
         if time_left.total_seconds() > 0:
             text += f"Осталось: {days_left}д {hours_left}ч\n"
@@ -110,19 +104,16 @@ async def list_events(callback: CallbackQuery):
     )
 
 @router.callback_query(F.data.startswith("event:delete:"))
-async def delete_event(callback: CallbackQuery):
-    event_id = callback.data.split(":")[2]
-    if event_id in events and events[event_id].created_by == callback.from_user.id:
-        del events[event_id]
-        await callback.message.edit_text(
-            "Мероприятие успешно удалено!",
-            reply_markup=get_events_menu_kb()
-        )
-    else:
-        await callback.message.edit_text(
-            "Мероприятие не найдено или у вас нет прав на его удаление!",
-            reply_markup=get_events_menu_kb()
-        )
+async def delete_event_handler(callback: CallbackQuery):
+    event_id = int(callback.data.split(":")[2])
+    
+    # Удаляем мероприятие из базы данных
+    delete_event(event_id, callback.from_user.id)
+    
+    await callback.message.edit_text(
+        "Мероприятие успешно удалено!",
+        reply_markup=get_events_menu_kb()
+    )
 
 @router.callback_query(F.data == "event:back")
 async def handle_back(callback: CallbackQuery):
