@@ -1,9 +1,21 @@
 import sqlite3
 from datetime import datetime
+from dataclasses import dataclass
+import os
+
+@dataclass
+class Student:
+    user_id: int
+    full_name: str
+    group_name: str
 
 class Database:
     def __init__(self):
-        self.conn = sqlite3.connect('bot.db')
+        # Создаем директорию для базы данных, если её нет
+        os.makedirs(os.path.dirname(os.path.abspath(__file__)), exist_ok=True)
+        # Указываем путь к базе данных в директории database/
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bot.db')
+        self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
 
     async def _create_tables(self):
@@ -14,6 +26,8 @@ class Database:
                 username TEXT,
                 first_name TEXT,
                 last_name TEXT,
+                full_name TEXT,
+                group_name TEXT,
                 is_authorized BOOLEAN DEFAULT FALSE
             )
         ''')
@@ -54,3 +68,30 @@ class Database:
         except Exception as e:
             print(f"Error adding task: {e}")
             return False 
+
+    async def add_student(self, user_id: int, full_name: str, group_name: str) -> bool:
+        try:
+            self.cursor.execute('''
+                INSERT OR REPLACE INTO users (user_id, full_name, group_name, is_authorized)
+                VALUES (?, ?, ?, TRUE)
+            ''', (user_id, full_name, group_name))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error adding student: {e}")
+            return False
+
+    async def get_student(self, user_id: int) -> Student | None:
+        try:
+            self.cursor.execute('''
+                SELECT user_id, full_name, group_name
+                FROM users
+                WHERE user_id = ? AND is_authorized = TRUE
+            ''', (user_id,))
+            result = self.cursor.fetchone()
+            if result:
+                return Student(user_id=result[0], full_name=result[1], group_name=result[2])
+            return None
+        except Exception as e:
+            print(f"Error getting student: {e}")
+            return None 
