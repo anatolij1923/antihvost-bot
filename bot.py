@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from database import Database
 from middlewares.auth import AuthMiddleware
 from handlers.auth import router as auth_router
+from handlers.menu import router as menu_router
 
 # Загрузка переменных окружения
 load_dotenv()
@@ -25,6 +26,7 @@ async def main():
     
     # Регистрация роутеров
     dp.include_router(auth_router)
+    dp.include_router(menu_router)
     
     # Запуск бота
     await dp.start_polling(bot)
