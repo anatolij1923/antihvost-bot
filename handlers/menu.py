@@ -1,6 +1,6 @@
-from aiogram import Router, types
+from aiogram import Router, types, F
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 router = Router()
 
@@ -37,12 +37,24 @@ def get_tasks_menu_keyboard() -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
+# Создаем Reply-клавиатуру с кнопкой "Главное меню"
+def get_main_menu_reply_keyboard() -> ReplyKeyboardMarkup:
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="🏠 Главное меню")]],
+        resize_keyboard=True
+    )
+    return keyboard
+
 # Хендлер для команды /start
 @router.message(Command("start"))
 async def cmd_start(message: types.Message):
     await message.answer(
         "Добро пожаловать! Выберите действие:",
         reply_markup=get_main_menu_keyboard()
+    )
+    await message.answer(
+        "Вы всегда можете вернуться в главное меню, нажав на кнопку ниже:",
+        reply_markup=get_main_menu_reply_keyboard()
     )
 
 # Хендлер для команды /menu
@@ -51,6 +63,10 @@ async def cmd_menu(message: types.Message):
     await message.answer(
         "Главное меню:",
         reply_markup=get_main_menu_keyboard()
+    )
+    await message.answer(
+        "Вы всегда можете вернуться в главное меню, нажав на кнопку ниже:",
+        reply_markup=get_main_menu_reply_keyboard()
     )
 
 # Хендлеры для кнопок меню
@@ -82,4 +98,12 @@ async def process_settings(callback: types.CallbackQuery):
 
 @router.callback_query(lambda c: c.data == "search_tasks")
 async def process_search_tasks(callback: types.CallbackQuery):
-    await callback.answer("Функция 'Список задач' в разработке") 
+    await callback.answer("Функция 'Список задач' в разработке")
+
+# Хендлер для кнопки "Главное меню"
+@router.message(F.text == "🏠 Главное меню")
+async def process_main_menu_button(message: types.Message):
+    await message.answer(
+        "Главное меню:",
+        reply_markup=get_main_menu_keyboard()
+    ) 

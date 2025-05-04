@@ -64,15 +64,6 @@ def get_confirmation_keyboard() -> InlineKeyboardMarkup:
 @router.callback_query(lambda c: c.data == "add_task")
 async def start_task_creation(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
-        "Введите название задачи:"
-    )
-    await state.set_state(TaskCreation.waiting_for_title)
-
-# Обработка названия задачи
-@router.message(TaskCreation.waiting_for_title)
-async def process_title(message: types.Message, state: FSMContext):
-    await state.update_data(title=message.text)
-    await message.answer(
         "Выберите тип задачи:",
         reply_markup=get_task_type_keyboard()
     )
@@ -88,11 +79,19 @@ async def process_type(callback: types.CallbackQuery, state: FSMContext):
         "event": "📅 Мероприятие"
     }
     await state.update_data(task_type=type_names[task_type])
-    await callback.message.edit_text(
-        "Выберите дисциплину:",
-        reply_markup=get_subject_keyboard()
-    )
-    await state.set_state(TaskCreation.waiting_for_subject)
+    
+    if task_type in ["lab", "homework"]:
+        await callback.message.edit_text(
+            "Выберите дисциплину:",
+            reply_markup=get_subject_keyboard()
+        )
+        await state.set_state(TaskCreation.waiting_for_subject)
+    else:  # Для мероприятий
+        await state.update_data(subject="Мероприятие")
+        await callback.message.edit_text(
+            "Введите название мероприятия:"
+        )
+        await state.set_state(TaskCreation.waiting_for_title)
 
 # Обработка выбора дисциплины
 @router.callback_query(TaskCreation.waiting_for_subject, F.data.startswith("subject:"))
@@ -111,14 +110,33 @@ async def process_subject(callback: types.CallbackQuery, state: FSMContext):
         }
         await state.update_data(subject=subject_names[subject])
         await callback.message.edit_text(
-            "Введите дедлайн в формате ДД.ММ.ГГГГ ЧЧ:ММ:"
+            "Введите название задачи:"
         )
-        await state.set_state(TaskCreation.waiting_for_deadline)
+        await state.set_state(TaskCreation.waiting_for_title)
 
 # Обработка ручного ввода дисциплины
 @router.message(TaskCreation.waiting_for_subject)
 async def process_manual_subject(message: types.Message, state: FSMContext):
     await state.update_data(subject=message.text)
+    await message.answer(
+        "Введите название задачи:"
+    )
+    await state.set_state(TaskCreation.waiting_for_title)
+
+# Обработка названия задачи
+@router.message(TaskCreation.waiting_for_title)
+async def process_title(message: types.Message, state: FSMContext):
+    await state.update_data(title=message.text)
+    await message.answer(
+        "Введите описание задачи (или отправьте '-' если описание не требуется):"
+    )
+    await state.set_state(TaskCreation.waiting_for_description)
+
+# Обработка описания
+@router.message(TaskCreation.waiting_for_description)
+async def process_description(message: types.Message, state: FSMContext):
+    description = message.text if message.text != "-" else None
+    await state.update_data(description=description)
     await message.answer(
         "Введите дедлайн в формате ДД.ММ.ГГГГ ЧЧ:ММ:"
     )
@@ -131,24 +149,14 @@ async def process_deadline(message: types.Message, state: FSMContext):
         deadline = datetime.strptime(message.text, "%d.%m.%Y %H:%M")
         await state.update_data(deadline=deadline)
         await message.answer(
-            "Введите описание задачи (или отправьте '-' если описание не требуется):"
+            "Выберите приоритет задачи:",
+            reply_markup=get_priority_keyboard()
         )
-        await state.set_state(TaskCreation.waiting_for_description)
+        await state.set_state(TaskCreation.waiting_for_priority)
     except ValueError:
         await message.answer(
             "Неверный формат даты. Пожалуйста, введите дату в формате ДД.ММ.ГГГГ ЧЧ:ММ:"
         )
-
-# Обработка описания
-@router.message(TaskCreation.waiting_for_description)
-async def process_description(message: types.Message, state: FSMContext):
-    description = message.text if message.text != "-" else None
-    await state.update_data(description=description)
-    await message.answer(
-        "Выберите приоритет задачи:",
-        reply_markup=get_priority_keyboard()
-    )
-    await state.set_state(TaskCreation.waiting_for_priority)
 
 # Обработка приоритета
 @router.callback_query(TaskCreation.waiting_for_priority, F.data.startswith("priority:"))
@@ -169,7 +177,12 @@ async def process_priority(callback: types.CallbackQuery, state: FSMContext):
         f"Проверьте данные задачи:\n\n"
         f"📌 Название: {data['title']}\n"
         f"📋 Тип: {data['task_type']}\n"
-        f"📚 Дисциплина: {data['subject']}\n"
+    )
+    
+    if data['task_type'] in ["🔬 Лабораторная", "🏠 Домашка"]:
+        confirmation_text += f"📚 Дисциплина: {data['subject']}\n"
+    
+    confirmation_text += (
         f"⏰ Дедлайн: {data['deadline'].strftime('%d.%m.%Y %H:%M')}\n"
         f"📝 Описание: {data['description'] or 'Нет описания'}\n"
         f"⚠️ Приоритет: {data['priority']}\n\n"

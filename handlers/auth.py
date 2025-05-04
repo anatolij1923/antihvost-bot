@@ -4,6 +4,7 @@ from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from database import Database
+from handlers.menu import get_main_menu_reply_keyboard
 
 router = Router()
 db = Database()
@@ -66,6 +67,10 @@ async def process_group(message: Message, state: FSMContext):
         f"Группа: {group_name}\n\n"
         f"Теперь вы можете использовать бота для учета лабораторных работ.",
         reply_markup=get_main_keyboard()
+    )
+    await message.answer(
+        "Вы всегда можете вернуться в главное меню, нажав на кнопку ниже:",
+        reply_markup=get_main_menu_reply_keyboard()
     )
 
 # Обработчик кнопки "Моя информация"
