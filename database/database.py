@@ -44,6 +44,7 @@ class Database:
                 description TEXT,
                 priority TEXT NOT NULL,
                 status TEXT DEFAULT 'active',
+                lab_status TEXT DEFAULT 'not_started',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (user_id)
             )
@@ -74,7 +75,7 @@ class Database:
             self.cursor.execute('''
                 SELECT id, title, task_type, subject, 
                        strftime('%d.%m.%Y %H:%M', deadline) as deadline,
-                       description, priority, status
+                       description, priority, status, lab_status
                 FROM tasks
                 WHERE user_id = ? AND status = 'active'
                 ORDER BY deadline ASC
@@ -110,3 +111,45 @@ class Database:
         except Exception as e:
             print(f"Error getting student: {e}")
             return None 
+
+    async def update_lab_status(self, task_id: int, status: str) -> bool:
+        try:
+            self.cursor.execute('''
+                UPDATE tasks
+                SET lab_status = ?
+                WHERE id = ? AND task_type = '🔬 Лабораторная'
+            ''', (status, task_id))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating lab status: {e}")
+            return False 
+
+    async def get_tasks_by_date(self, date: datetime) -> list:
+        try:
+            self.cursor.execute('''
+                SELECT id, title, task_type, subject, deadline,
+                       description, priority, status, lab_status
+                FROM tasks
+                WHERE date(deadline) = date(?) AND status = 'active'
+                ORDER BY deadline ASC
+            ''', (date,))
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"Error getting tasks by date: {e}")
+            return []
+
+    async def get_tasks_by_date_range(self, start_date: datetime, end_date: datetime) -> list:
+        try:
+            self.cursor.execute('''
+                SELECT id, title, task_type, subject, deadline,
+                       description, priority, status, lab_status
+                FROM tasks
+                WHERE date(deadline) BETWEEN date(?) AND date(?)
+                AND status = 'active'
+                ORDER BY deadline ASC
+            ''', (start_date, end_date))
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"Error getting tasks by date range: {e}")
+            return [] 

@@ -9,6 +9,7 @@ from middlewares.auth import AuthMiddleware
 from handlers.auth import router as auth_router
 from handlers.menu import router as menu_router
 from handlers.task_creation import router as task_creation_router
+from handlers.calendar import router as calendar_router
 
 # Загрузка переменных окружения
 load_dotenv()
@@ -31,6 +32,7 @@ async def main():
     dp.include_router(auth_router)
     dp.include_router(menu_router)
     dp.include_router(task_creation_router)
+    dp.include_router(calendar_router)
     
     # Запуск бота
     print("Бот запущен")
