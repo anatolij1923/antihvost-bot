@@ -191,10 +191,6 @@ async def process_calendar(callback: types.CallbackQuery):
 async def process_rating(callback: types.CallbackQuery):
     await callback.answer("Раздел 'Рейтинг' в разработке")
 
-@router.callback_query(lambda c: c.data == "settings")
-async def process_settings(callback: types.CallbackQuery):
-    await callback.answer("Раздел 'Настройки' в разработке")
-
 @router.callback_query(lambda c: c.data == "search_tasks")
 async def process_search_tasks(callback: types.CallbackQuery):
     db = Database()
