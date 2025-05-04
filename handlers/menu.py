@@ -95,6 +95,37 @@ def get_detailed_tasks_keyboard() -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
+# Создаем клавиатуру для детального просмотра задачи
+def get_task_detail_keyboard(task_id: int, task_type: str) -> InlineKeyboardMarkup:
+    keyboard = []
+    
+    # Добавляем кнопку удаления
+    keyboard.append([
+        InlineKeyboardButton(
+            text="🗑️ Удалить задачу",
+            callback_data=f"delete_task:{task_id}"
+        )
+    ])
+    
+    # Если это лабораторная работа, добавляем кнопку изменения статуса
+    if task_type == "🔬 Лабораторная":
+        keyboard.append([
+            InlineKeyboardButton(
+                text="📊 Изменить статус",
+                callback_data=f"lab_status:{task_id}"
+            )
+        ])
+    
+    # Добавляем кнопку возврата к списку
+    keyboard.append([
+        InlineKeyboardButton(
+            text="◀️ Назад к списку",
+            callback_data="view_mode:compact"
+        )
+    ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 # Создаем клавиатуру для изменения статуса лабораторной работы
 def get_lab_status_keyboard(task_id: int) -> InlineKeyboardMarkup:
     keyboard = [
@@ -248,14 +279,14 @@ async def process_view_mode(callback: types.CallbackQuery):
                 f"⏰ Дедлайн: {deadline}\n"
                 f"📝 Описание: {description or 'Нет описания'}\n"
                 f"⚠️ Приоритет: {priority}\n"
-                f"────────────────────\n"
+                f"-------------------\n"
             )
         
         await callback.message.edit_text(
             message_text,
             reply_markup=get_detailed_tasks_keyboard()
         )
-    else:  # compact view
+    else:
         message_text = "📋 Ваши активные задачи:\n\n"
         message_text += "Нажмите на задачу, чтобы увидеть подробности."
         
@@ -269,120 +300,110 @@ async def process_task_detail(callback: types.CallbackQuery):
     db = Database()
     task_id = int(callback.data.split(":")[1])
     
-    # Получаем информацию о конкретной задаче
-    try:
-        db.cursor.execute('''
-            SELECT id, title, task_type, subject, 
-                   strftime('%d.%m.%Y %H:%M', deadline) as deadline,
-                   description, priority, status, lab_status
-            FROM tasks
-            WHERE id = ?
-        ''', (task_id,))
-        task = db.cursor.fetchone()
+    # Получаем информацию о задаче
+    tasks = await db.get_user_tasks(callback.from_user.id)
+    task = next((t for t in tasks if t[0] == task_id), None)
+    
+    if not task:
+        await callback.answer("Задача не найдена")
+        return
+    
+    task_id, title, task_type, subject, deadline, description, priority, status, lab_status = task
+    
+    # Формируем сообщение с деталями задачи
+    message_text = (
+        f"📌 {title}\n\n"
+        f"📋 Тип: {task_type}\n"
+    )
+    
+    if task_type in ["🔬 Лабораторная", "🏠 Домашка"]:
+        message_text += f"📚 Дисциплина: {subject}\n"
+    
+    if task_type == "🔬 Лабораторная":
+        message_text += f"📊 Статус: {get_status_text(lab_status)}\n"
+        
+    message_text += (
+        f"⏰ Дедлайн: {deadline}\n"
+        f"📝 Описание: {description or 'Нет описания'}\n"
+        f"⚠️ Приоритет: {priority}\n"
+    )
+    
+    await callback.message.edit_text(
+        message_text,
+        reply_markup=get_task_detail_keyboard(task_id, task_type)
+    )
+
+@router.callback_query(lambda c: c.data.startswith("delete_task:"))
+async def process_delete_task(callback: types.CallbackQuery):
+    db = Database()
+    task_id = int(callback.data.split(":")[1])
+    
+    # Удаляем задачу
+    if await db.delete_task(task_id, callback.from_user.id):
+        await callback.answer("✅ Задача успешно удалена")
+        
+        # Обновляем список задач
+        tasks = await db.get_user_tasks(callback.from_user.id)
+        
+        if not tasks:
+            await callback.message.edit_text(
+                "📋 У вас пока нет активных задач.\n\n"
+                "Вы можете добавить новую задачу, нажав на кнопку ниже:",
+                reply_markup=get_tasks_menu_keyboard()
+            )
+            return
+        
+        message_text = "📋 Ваши активные задачи:\n\n"
+        message_text += "Нажмите на задачу, чтобы увидеть подробности."
+        
+        await callback.message.edit_text(
+            message_text,
+            reply_markup=get_compact_tasks_keyboard(tasks)
+        )
+    else:
+        await callback.answer("❌ Не удалось удалить задачу")
+
+@router.callback_query(lambda c: c.data.startswith("change_status:"))
+async def process_change_status(callback: types.CallbackQuery):
+    db = Database()
+    task_id = int(callback.data.split(":")[1])
+    new_status = callback.data.split(":")[2]
+    
+    if await db.update_lab_status(task_id, new_status):
+        await callback.answer("✅ Статус успешно обновлен")
+        
+        # Обновляем информацию о задаче
+        tasks = await db.get_user_tasks(callback.from_user.id)
+        task = next((t for t in tasks if t[0] == task_id), None)
         
         if task:
             task_id, title, task_type, subject, deadline, description, priority, status, lab_status = task
+            
             message_text = (
-                f"📌 {title}\n"
+                f"📌 {title}\n\n"
                 f"📋 Тип: {task_type}\n"
-            )
-            
-            if task_type in ["🔬 Лабораторная", "🏠 Домашка"]:
-                message_text += f"📚 Дисциплина: {subject}\n"
-            
-            if task_type == "🔬 Лабораторная":
-                message_text += f"📊 Статус: {get_status_text(lab_status)}\n"
-                
-            message_text += (
+                f"📚 Дисциплина: {subject}\n"
+                f"📊 Статус: {get_status_text(lab_status)}\n"
                 f"⏰ Дедлайн: {deadline}\n"
                 f"📝 Описание: {description or 'Нет описания'}\n"
                 f"⚠️ Приоритет: {priority}\n"
             )
             
-            keyboard = []
-            
-            # Добавляем кнопку изменения статуса только для лабораторных работ
-            if task_type == "🔬 Лабораторная":
-                keyboard.append([
-                    InlineKeyboardButton(
-                        text="📊 Изменить статус",
-                        callback_data=f"change_status:{task_id}"
-                    )
-                ])
-            
-            keyboard.append([
-                InlineKeyboardButton(
-                    text="◀️ Назад к списку",
-                    callback_data="view_mode:compact"
-                )
-            ])
-            
             await callback.message.edit_text(
                 message_text,
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+                reply_markup=get_task_detail_keyboard(task_id, task_type)
             )
-        else:
-            await callback.answer("Задача не найдена")
-    except Exception as e:
-        print(f"Error getting task details: {e}")
-        await callback.answer("Произошла ошибка при получении информации о задаче")
-
-@router.callback_query(lambda c: c.data.startswith("change_status:"))
-async def process_change_status(callback: types.CallbackQuery):
-    task_id = int(callback.data.split(":")[1])
-    
-    # Получаем информацию о задаче
-    db = Database()
-    try:
-        db.cursor.execute('''
-            SELECT title, task_type
-            FROM tasks
-            WHERE id = ?
-        ''', (task_id,))
-        task = db.cursor.fetchone()
-        
-        if task and task[1] == "🔬 Лабораторная":
-            await callback.message.edit_text(
-                f"Выберите новый статус для лабораторной работы:\n\n"
-                f"📌 {task[0]}",
-                reply_markup=get_lab_status_keyboard(task_id)
-            )
-        else:
-            await callback.answer("Эта задача не является лабораторной работой")
-    except Exception as e:
-        print(f"Error changing status: {e}")
-        await callback.answer("Произошла ошибка при изменении статуса")
+    else:
+        await callback.answer("❌ Не удалось обновить статус")
 
 @router.callback_query(lambda c: c.data.startswith("lab_status:"))
 async def process_lab_status(callback: types.CallbackQuery):
-    _, task_id, new_status = callback.data.split(":")
-    task_id = int(task_id)
-    
-    db = Database()
-    if await db.update_lab_status(task_id, new_status):
-        # Получаем обновленную информацию о задаче
-        try:
-            db.cursor.execute('''
-                SELECT title, task_type, lab_status
-                FROM tasks
-                WHERE id = ?
-            ''', (task_id,))
-            task = db.cursor.fetchone()
-            
-            if task:
-                await callback.message.edit_text(
-                    f"✅ Статус лабораторной работы обновлен:\n\n"
-                    f"📌 {task[0]}\n"
-                    f"📊 Новый статус: {get_status_text(task[2])}",
-                    reply_markup=get_lab_status_keyboard(task_id)
-                )
-        except Exception as e:
-            print(f"Error getting updated task info: {e}")
-            await callback.answer("Произошла ошибка при обновлении статуса")
-    else:
-        await callback.answer("Не удалось обновить статус")
+    task_id = int(callback.data.split(":")[1])
+    await callback.message.edit_text(
+        "Выберите новый статус лабораторной работы:",
+        reply_markup=get_lab_status_keyboard(task_id)
+    )
 
-# Хендлер для кнопки "Главное меню"
 @router.message(F.text == "🏠 Главное меню")
 async def process_main_menu_button(message: types.Message):
     await message.answer(

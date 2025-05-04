@@ -188,4 +188,19 @@ class Database:
             return result[0] if result else False
         except Exception as e:
             print(f"Error checking notifications status: {e}")
+            return False
+
+    async def delete_task(self, task_id: int, user_id: int) -> bool:
+        try:
+            # Проверяем, принадлежит ли задача пользователю
+            self.cursor.execute('SELECT id FROM tasks WHERE id = ? AND user_id = ?', (task_id, user_id))
+            if not self.cursor.fetchone():
+                return False
+            
+            # Удаляем задачу
+            self.cursor.execute('DELETE FROM tasks WHERE id = ? AND user_id = ?', (task_id, user_id))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error deleting task: {e}")
             return False 
