@@ -69,6 +69,21 @@ class Database:
             print(f"Error adding task: {e}")
             return False 
 
+    async def get_user_tasks(self, user_id: int) -> list:
+        try:
+            self.cursor.execute('''
+                SELECT id, title, task_type, subject, 
+                       strftime('%d.%m.%Y %H:%M', deadline) as deadline,
+                       description, priority, status
+                FROM tasks
+                WHERE user_id = ? AND status = 'active'
+                ORDER BY deadline ASC
+            ''', (user_id,))
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"Error getting user tasks: {e}")
+            return []
+
     async def add_student(self, user_id: int, full_name: str, group_name: str) -> bool:
         try:
             self.cursor.execute('''

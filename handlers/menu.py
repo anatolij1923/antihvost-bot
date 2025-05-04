@@ -1,6 +1,7 @@
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from database.database import Database
 
 router = Router()
 
@@ -98,7 +99,42 @@ async def process_settings(callback: types.CallbackQuery):
 
 @router.callback_query(lambda c: c.data == "search_tasks")
 async def process_search_tasks(callback: types.CallbackQuery):
-    await callback.answer("Функция 'Список задач' в разработке")
+    db = Database()
+    tasks = await db.get_user_tasks(callback.from_user.id)
+    
+    if not tasks:
+        await callback.message.edit_text(
+            "📋 У вас пока нет активных задач.\n\n"
+            "Вы можете добавить новую задачу, нажав на кнопку ниже:",
+            reply_markup=get_tasks_menu_keyboard()
+        )
+        return
+    
+    message_text = "📋 Ваши активные задачи:\n\n"
+    
+    for task in tasks:
+        task_id, title, task_type, subject, deadline, description, priority, status = task
+        message_text += (
+            f"📌 {title}\n"
+            f"📋 Тип: {task_type}\n"
+        )
+        
+        if task_type in ["🔬 Лабораторная", "🏠 Домашка"]:
+            message_text += f"📚 Дисциплина: {subject}\n"
+            
+        message_text += (
+            f"⏰ Дедлайн: {deadline}\n"
+            f"📝 Описание: {description or 'Нет описания'}\n"
+            f"⚠️ Приоритет: {priority}\n"
+            f"────────────────────\n"
+        )
+    
+    message_text += "\nВыберите действие:"
+    
+    await callback.message.edit_text(
+        message_text,
+        reply_markup=get_tasks_menu_keyboard()
+    )
 
 # Хендлер для кнопки "Главное меню"
 @router.message(F.text == "🏠 Главное меню")
