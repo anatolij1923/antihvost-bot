@@ -175,14 +175,22 @@ def get_status_text(status: str) -> str:
 # Хендлер для команды /start
 @router.message(Command("start"))
 async def cmd_start(message: types.Message):
-    await message.answer(
-        "Добро пожаловать! Выберите действие:",
-        reply_markup=get_main_menu_keyboard()
-    )
-    await message.answer(
-        "Вы всегда можете вернуться в главное меню, нажав на кнопку ниже:",
-        reply_markup=get_main_menu_reply_keyboard()
-    )
+    db = Database()
+    if await db.is_authorized(message.from_user.id):
+        await message.answer(
+            "Добро пожаловать! Выберите действие:",
+            reply_markup=get_main_menu_keyboard()
+        )
+        await message.answer(
+            "Вы всегда можете вернуться в главное меню, нажав на кнопку ниже:",
+            reply_markup=get_main_menu_reply_keyboard()
+        )
+    else:
+        await message.answer(
+            "👋 Добро пожаловать в бот для учета задач!\n\n"
+            "⚠️ Для использования бота необходимо авторизоваться.\n\n"
+            "Пожалуйста, используйте команду /auth для авторизации."
+        )
 
 # Хендлер для команды /menu
 @router.message(Command("menu"))
