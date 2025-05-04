@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Инициализация бота и диспетчера
-bot = Bot(token=os.getenv("BOT_TOKEN"), parse_mode=ParseMode.HTML)
+bot = Bot(token=os.getenv("BOT_TOKEN"))
 dp = Dispatcher(storage=MemoryStorage())
 
 async def main():

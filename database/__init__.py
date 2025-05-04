@@ -5,13 +5,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Создание асинхронного движка базы данных
 engine = create_async_engine(
     os.getenv("DATABASE_URL", "sqlite+aiosqlite:///bot.db"),
     echo=True
 )
 
-# Создание фабрики сессий
 async_session = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )
