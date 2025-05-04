@@ -20,7 +20,7 @@ async def show_calendar(message: Message):
 @router.callback_query(F.data == "calendar_today")
 async def show_today_tasks(callback: CallbackQuery):
     today = datetime.now().date()
-    tasks = await db.get_tasks_by_date(today)
+    tasks = await db.get_tasks_by_date(today, callback.from_user.id)
     
     if not tasks:
         await callback.message.edit_text(
@@ -33,8 +33,7 @@ async def show_today_tasks(callback: CallbackQuery):
     for task in tasks:
         text += f"• {task[1]}\n"
         if task[4]:
-            deadline = datetime.strptime(task[4], '%Y-%m-%d %H:%M:%S')
-            text += f"  Дедлайн: {deadline.strftime('%H:%M')}\n"
+            text += f"  Дедлайн: {task[4]}\n"
         text += "\n"
     
     await callback.message.edit_text(
@@ -46,7 +45,7 @@ async def show_today_tasks(callback: CallbackQuery):
 async def show_week_tasks(callback: CallbackQuery):
     today = datetime.now().date()
     week_end = today + timedelta(days=7)
-    tasks = await db.get_tasks_by_date_range(today, week_end)
+    tasks = await db.get_tasks_by_date_range(today, week_end, callback.from_user.id)
     
     if not tasks:
         await callback.message.edit_text(
@@ -59,8 +58,7 @@ async def show_week_tasks(callback: CallbackQuery):
     for task in tasks:
         text += f"• {task[1]}\n"
         if task[4]:
-            deadline = datetime.strptime(task[4], '%Y-%m-%d %H:%M:%S')
-            text += f"  Дедлайн: {deadline.strftime('%d.%m.%Y %H:%M')}\n"
+            text += f"  Дедлайн: {task[4]}\n"
         text += "\n"
     
     await callback.message.edit_text(
@@ -73,7 +71,7 @@ async def show_month_tasks(callback: CallbackQuery):
     today = datetime.now().date()
     month_end = today.replace(day=1) + timedelta(days=32)
     month_end = month_end.replace(day=1) - timedelta(days=1)
-    tasks = await db.get_tasks_by_date_range(today, month_end)
+    tasks = await db.get_tasks_by_date_range(today, month_end, callback.from_user.id)
     
     if not tasks:
         await callback.message.edit_text(
@@ -86,8 +84,7 @@ async def show_month_tasks(callback: CallbackQuery):
     for task in tasks:
         text += f"• {task[1]}\n"
         if task[4]:
-            deadline = datetime.strptime(task[4], '%Y-%m-%d %H:%M:%S')
-            text += f"  Дедлайн: {deadline.strftime('%d.%m.%Y %H:%M')}\n"
+            text += f"  Дедлайн: {task[4]}\n"
         text += "\n"
     
     await callback.message.edit_text(

@@ -125,30 +125,35 @@ class Database:
             print(f"Error updating lab status: {e}")
             return False 
 
-    async def get_tasks_by_date(self, date: datetime) -> list:
+    async def get_tasks_by_date(self, date: datetime, user_id: int) -> list:
         try:
             self.cursor.execute('''
-                SELECT id, title, task_type, subject, deadline,
+                SELECT id, title, task_type, subject, 
+                       strftime('%d.%m.%Y %H:%M', deadline) as deadline,
                        description, priority, status, lab_status
                 FROM tasks
-                WHERE date(deadline) = date(?) AND status = 'active'
+                WHERE date(deadline) = date(?) 
+                AND user_id = ?
+                AND status = 'active'
                 ORDER BY deadline ASC
-            ''', (date,))
+            ''', (date, user_id))
             return self.cursor.fetchall()
         except Exception as e:
             print(f"Error getting tasks by date: {e}")
             return []
 
-    async def get_tasks_by_date_range(self, start_date: datetime, end_date: datetime) -> list:
+    async def get_tasks_by_date_range(self, start_date: datetime, end_date: datetime, user_id: int) -> list:
         try:
             self.cursor.execute('''
-                SELECT id, title, task_type, subject, deadline,
+                SELECT id, title, task_type, subject, 
+                       strftime('%d.%m.%Y %H:%M', deadline) as deadline,
                        description, priority, status, lab_status
                 FROM tasks
                 WHERE date(deadline) BETWEEN date(?) AND date(?)
+                AND user_id = ?
                 AND status = 'active'
                 ORDER BY deadline ASC
-            ''', (start_date, end_date))
+            ''', (start_date, end_date, user_id))
             return self.cursor.fetchall()
         except Exception as e:
             print(f"Error getting tasks by date range: {e}")

@@ -51,7 +51,7 @@ def get_main_menu_reply_keyboard() -> ReplyKeyboardMarkup:
 def get_compact_tasks_keyboard(tasks: list) -> InlineKeyboardMarkup:
     keyboard = []
     for task in tasks:
-        task_id, title, task_type, subject, deadline, description, priority, status = task
+        task_id, title, task_type, subject, deadline, description, priority, status, lab_status = task
         keyboard.append([
             InlineKeyboardButton(
                 text=f"{task_type} {title}",
