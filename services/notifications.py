@@ -18,9 +18,9 @@ class NotificationManager:
                 print(f"\nПроверка уведомлений в {current_date.strftime('%Y-%m-%d %H:%M:%S')}")
                 
                 # Получаем всех авторизованных пользователей
-                self.db.cursor.execute('SELECT user_id FROM users WHERE is_authorized = TRUE')
+                self.db.cursor.execute('SELECT user_id FROM users WHERE is_authorized = TRUE AND notifications_enabled = TRUE')
                 authorized_users = self.db.cursor.fetchall()
-                print(f"Найдено авторизованных пользователей: {len(authorized_users)}")
+                print(f"Найдено авторизованных пользователей с включенными уведомлениями: {len(authorized_users)}")
                 
                 for user in authorized_users:
                     user_id = user[0]

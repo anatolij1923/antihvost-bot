@@ -43,3 +43,4 @@ database/*.sqlite3
 
 # Прочее
 roadmap.md
+scripts/*
