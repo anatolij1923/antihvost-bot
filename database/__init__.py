@@ -2,7 +2,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
-from .models import Database, Student, Base
+from .models import Student, Base
+from .database import Database
 
 load_dotenv()
 

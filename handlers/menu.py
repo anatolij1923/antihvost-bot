@@ -29,13 +29,7 @@ def get_tasks_menu_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="➕ Добавить задачу", callback_data="add_task")
         ],
         [
-            InlineKeyboardButton(text="📂 По дисциплине", callback_data="tasks_by_subject")
-        ],
-        [
-            InlineKeyboardButton(text="✅ По статусу", callback_data="tasks_by_status")
-        ],
-        [
-            InlineKeyboardButton(text="🔍 Поиск задач", callback_data="search_tasks")
+            InlineKeyboardButton(text="📋 Список задач", callback_data="search_tasks")
         ],
         [
             InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_main")
@@ -86,19 +80,6 @@ async def process_rating(callback: types.CallbackQuery):
 async def process_settings(callback: types.CallbackQuery):
     await callback.answer("Раздел 'Настройки' в разработке")
 
-# Хендлеры для подменю "Мои задачи"
-@router.callback_query(lambda c: c.data == "add_task")
-async def process_add_task(callback: types.CallbackQuery):
-    await callback.answer("Функция 'Добавить задачу' в разработке")
-
-@router.callback_query(lambda c: c.data == "tasks_by_subject")
-async def process_tasks_by_subject(callback: types.CallbackQuery):
-    await callback.answer("Функция 'По дисциплине' в разработке")
-
-@router.callback_query(lambda c: c.data == "tasks_by_status")
-async def process_tasks_by_status(callback: types.CallbackQuery):
-    await callback.answer("Функция 'По статусу' в разработке")
-
 @router.callback_query(lambda c: c.data == "search_tasks")
 async def process_search_tasks(callback: types.CallbackQuery):
-    await callback.answer("Функция 'Поиск задач' в разработке") 
+    await callback.answer("Функция 'Список задач' в разработке") 
