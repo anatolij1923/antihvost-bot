@@ -20,7 +20,7 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
+# Venv
 venv/
 ENV/
 
@@ -30,13 +30,16 @@ ENV/
 *.swp
 *.swo
 
-# Database
+# БД
 database/*.db
 database/*.sqlite
 database/*.sqlite3
 
-# Environment variables
+# Env-variables
 .env
 
-# Logs
+# Логи
 *.log
+
+# Прочее
+roadmap.md
