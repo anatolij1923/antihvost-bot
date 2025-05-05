@@ -7,9 +7,11 @@ from database import Database
 from handlers.menu import get_main_menu_reply_keyboard
 from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from services.group_tasks import GroupTasksManager
 
 router = Router()
 db = Database()
+group_tasks_manager = GroupTasksManager(db)
 
 class AuthStates(StatesGroup):
     waiting_for_full_name = State()
@@ -61,6 +63,10 @@ async def process_group(message: types.Message, state: FSMContext):
     
     # Добавляем студента в базу данных
     if await db.add_student(message.from_user.id, full_name, group_name):
+        # Добавляем лабораторные работы для студентов ИВТб 1 курса
+        if group_name.startswith("ИВТб-1"):
+            await group_tasks_manager.add_labs_for_new_student(message.from_user.id, group_name)
+        
         await message.answer(
             f"✅ Авторизация успешно завершена!\n\n"
             f"👤 Ваше имя: {full_name}\n"
