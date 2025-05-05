@@ -371,11 +371,19 @@ async def process_delete_task(callback: types.CallbackQuery):
     else:
         await callback.answer("❌ Не удалось удалить задачу")
 
-@router.callback_query(lambda c: c.data.startswith("change_status:"))
+@router.callback_query(lambda c: c.data.startswith("lab_status:"))
 async def process_change_status(callback: types.CallbackQuery):
     db = Database()
-    task_id = int(callback.data.split(":")[1])
-    new_status = callback.data.split(":")[2]
+    parts = callback.data.split(":")
+    task_id = int(parts[1])
+    if len(parts) > 2:
+        new_status = parts[2]
+    else:
+        await callback.message.edit_text(
+            "Выберите новый статус лабораторной работы:",
+            reply_markup=get_lab_status_keyboard(task_id)
+        )
+        return
     
     if await db.update_lab_status(task_id, new_status):
         await callback.answer("✅ Статус успешно обновлен")
@@ -403,14 +411,6 @@ async def process_change_status(callback: types.CallbackQuery):
             )
     else:
         await callback.answer("❌ Не удалось обновить статус")
-
-@router.callback_query(lambda c: c.data.startswith("lab_status:"))
-async def process_lab_status(callback: types.CallbackQuery):
-    task_id = int(callback.data.split(":")[1])
-    await callback.message.edit_text(
-        "Выберите новый статус лабораторной работы:",
-        reply_markup=get_lab_status_keyboard(task_id)
-    )
 
 @router.message(F.text == "🏠 Главное меню")
 async def process_main_menu_button(message: types.Message):
