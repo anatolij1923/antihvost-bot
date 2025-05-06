@@ -4,7 +4,7 @@ from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from database import Database
-from handlers.menu import get_main_menu_reply_keyboard
+from handlers.menu import get_main_menu_reply_keyboard, cmd_menu
 from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.group_tasks import GroupTasksManager
@@ -73,6 +73,8 @@ async def process_group(message: types.Message, state: FSMContext):
             f"👥 Ваша группа: {group_name}\n\n"
             "Теперь вы можете использовать все функции бота."
         )
+        # Вызываем команду /menu после успешной авторизации
+        await cmd_menu(message)
     else:
         await message.answer(
             "❌ Произошла ошибка при авторизации.\n\n"
