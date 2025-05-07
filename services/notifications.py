@@ -24,14 +24,14 @@ class NotificationManager:
                 
                 for user in authorized_users:
                     user_id = user[0]
-                    print(f"\nПроверка задач для пользователя {user_id}")
+                    # print(f"\nПроверка задач для пользователя {user_id}")
                     
                     for days in self.notification_intervals:
                         target_date = current_date + timedelta(days=days)
-                        print(f"Проверка задач на {target_date.strftime('%Y-%m-%d')} (через {days} дней)")
+                        # print(f"Проверка задач на {target_date.strftime('%Y-%m-%d')} (через {days} дней)")
                         
                         tasks = await self.db.get_tasks_by_date(target_date, user_id)
-                        print(f"Найдено задач: {len(tasks)}")
+                        # print(f"Найдено задач: {len(tasks)}")
                         
                         for task in tasks:
                             task_id = task[0]
@@ -75,7 +75,7 @@ class NotificationManager:
                             except Exception as e:
                                 print(f"Ошибка отправки уведомления пользователю {user_id}: {e}")
                 
-                print("Ожидание следующей проверки...")
+                # print("Ожидание следующей проверки...")
                 await asyncio.sleep(6 * 60 * 60)
                 
             except Exception as e:
