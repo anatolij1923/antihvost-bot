@@ -204,3 +204,80 @@ class Database:
         except Exception as e:
             print(f"Error deleting task: {e}")
             return False 
+
+    async def get_user_rating(self, user_id: int) -> int:
+        """Получить рейтинг пользователя"""
+        try:
+            self.cursor.execute('''
+                SELECT COUNT(*) 
+                FROM tasks 
+                WHERE user_id = ? 
+                AND lab_status = 'submitted' 
+                AND subject IN ('Информатика', 'Программирование', 'Дискретная математика')
+            ''', (user_id,))
+            result = self.cursor.fetchone()
+            return result[0] if result else 0
+        except Exception as e:
+            print(f"Error getting user rating: {e}")
+            return 0
+
+    async def get_user_rank(self, user_id: int) -> int:
+        """Получить место пользователя в рейтинге"""
+        try:
+            # Получаем рейтинг пользователя
+            self.cursor.execute('''
+                SELECT COUNT(*) 
+                FROM tasks 
+                WHERE user_id = ? 
+                AND lab_status = 'submitted' 
+                AND subject IN ('Информатика', 'Программирование', 'Дискретная математика')
+            ''', (user_id,))
+            user_rating = self.cursor.fetchone()[0] or 0
+
+            # Считаем количество пользователей с большим рейтингом
+            self.cursor.execute('''
+                SELECT COUNT(DISTINCT user_id)
+                FROM tasks
+                WHERE lab_status = 'submitted' 
+                AND subject IN ('Информатика', 'Программирование', 'Дискретная математика')
+                GROUP BY user_id
+                HAVING COUNT(*) > ?
+            ''', (user_rating,))
+            result = self.cursor.fetchone()
+            return (result[0] if result else 0) + 1
+        except Exception as e:
+            print(f"Error getting user rank: {e}")
+            return 1
+
+    async def get_total_users(self) -> int:
+        """Получить общее количество пользователей"""
+        try:
+            self.cursor.execute('''
+                SELECT COUNT(DISTINCT user_id) 
+                FROM tasks 
+                WHERE lab_status = 'submitted' 
+                AND subject IN ('Информатика', 'Программирование', 'Дискретная математика')
+            ''')
+            result = self.cursor.fetchone()
+            return result[0] if result else 0
+        except Exception as e:
+            print(f"Error getting total users: {e}")
+            return 0
+
+    async def get_top_students(self, limit: int = 5):
+        """Получить топ студентов"""
+        try:
+            self.cursor.execute('''
+                SELECT u.full_name as name, COUNT(*) as rating
+                FROM tasks t
+                JOIN users u ON t.user_id = u.user_id
+                WHERE t.lab_status = 'submitted' 
+                AND t.subject IN ('Информатика', 'Программирование', 'Дискретная математика')
+                GROUP BY t.user_id, u.full_name
+                ORDER BY rating DESC
+                LIMIT ?
+            ''', (limit,))
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"Error getting top students: {e}")
+            return [] 

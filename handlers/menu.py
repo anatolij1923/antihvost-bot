@@ -228,7 +228,17 @@ async def process_calendar(callback: types.CallbackQuery):
 
 @router.callback_query(lambda c: c.data == "rating")
 async def process_rating(callback: types.CallbackQuery):
-    await callback.answer("Раздел 'Рейтинг' в разработке")
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📊 Мой рейтинг", callback_data="my_rating")],
+            [InlineKeyboardButton(text="🏆 Топ студентов", callback_data="top_students")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_main")]
+        ]
+    )
+    await callback.message.edit_text(
+        "Выберите раздел рейтинга:",
+        reply_markup=keyboard
+    )
 
 @router.callback_query(lambda c: c.data == "search_tasks")
 async def process_search_tasks(callback: types.CallbackQuery):
@@ -424,4 +434,39 @@ async def handle_calendar(message: types.Message):
     await message.answer(
         "Выберите период для просмотра заданий:",
         reply_markup=get_calendar_keyboard()
-    ) 
+    )
+
+@router.callback_query(lambda c: c.data == "my_rating")
+async def show_my_rating(callback: types.CallbackQuery):
+    db = Database()
+    user_id = callback.from_user.id
+    rating = await db.get_user_rating(user_id)
+    rank = await db.get_user_rank(user_id)
+    total_users = await db.get_total_users()
+    
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="rating")]
+        ]
+    )
+    
+    text = f"📊 Твой рейтинг: {rating} очков\n📈 Место в рейтинге: {rank} из {total_users}"
+    await callback.message.edit_text(text, reply_markup=keyboard)
+
+@router.callback_query(lambda c: c.data == "top_students")
+async def show_top_students(callback: types.CallbackQuery):
+    db = Database()
+    top_students = await db.get_top_students(5)
+    
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="rating")]
+        ]
+    )
+    
+    text = "🏆 Топ студентов:\n\n"
+    for i, student in enumerate(top_students, 1):
+        name, rating = student  # Распаковываем кортеж
+        text += f"{i}. {name} - {rating} очков\n"
+    
+    await callback.message.edit_text(text, reply_markup=keyboard) 

@@ -11,6 +11,7 @@ from handlers.menu import router as menu_router
 from handlers.task_creation import router as task_creation_router
 from handlers.settings import router as settings_router
 from handlers.calendar import router as calendar_router
+from handlers.rating import router as rating_router
 from services.notifications import NotificationManager
 
 # Загрузка переменных окружения
@@ -37,6 +38,7 @@ async def main():
     dp.include_router(task_creation_router)
     dp.include_router(calendar_router)
     dp.include_router(settings_router)
+    dp.include_router(rating_router)
     
     # Запуск системы уведомлений
     print("Инициализация системы уведомлений...")
