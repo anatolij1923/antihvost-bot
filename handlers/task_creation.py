@@ -139,7 +139,7 @@ async def process_description(message: types.Message, state: FSMContext):
     description = message.text if message.text != "-" else None
     await state.update_data(description=description)
     await message.answer(
-        "Введите дедлайн в формате ДД.ММ.ГГГГ ЧЧ:ММ:"
+        "Введите дедлайн в формате ДД.ММ.ГГГГ, можете указать время по желанию:"
     )
     await state.set_state(TaskCreation.waiting_for_deadline)
 
@@ -147,17 +147,24 @@ async def process_description(message: types.Message, state: FSMContext):
 @router.message(TaskCreation.waiting_for_deadline)
 async def process_deadline(message: types.Message, state: FSMContext):
     try:
+        # Попытка парсинга с указанием времени
         deadline = datetime.strptime(message.text, "%d.%m.%Y %H:%M")
-        await state.update_data(deadline=deadline)
-        await message.answer(
-            "Выберите приоритет задачи:",
-            reply_markup=get_priority_keyboard()
-        )
-        await state.set_state(TaskCreation.waiting_for_priority)
     except ValueError:
-        await message.answer(
-            "Неверный формат даты. Пожалуйста, введите дату в формате ДД.ММ.ГГГГ ЧЧ:ММ:"
-        )
+        try:
+            # Попытка парсинга только даты, время устанавливается на 00:00
+            deadline = datetime.strptime(message.text, "%d.%m.%Y")
+        except ValueError:
+            await message.answer(
+                "Неверный формат даты. Пожалуйста, введите дату в формате ДД.ММ.ГГГГ ЧЧ:ММ или ДД.ММ.ГГГГ:"
+            )
+            return # Остаемся в текущем состоянии, ожидая корректный ввод
+
+    await state.update_data(deadline=deadline)
+    await message.answer(
+        "Выберите приоритет задачи:",
+        reply_markup=get_priority_keyboard()
+    )
+    await state.set_state(TaskCreation.waiting_for_priority)
 
 # Обработка приоритета
 @router.callback_query(TaskCreation.waiting_for_priority, F.data.startswith("priority:"))
