@@ -4,6 +4,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime
 from states.task_states import TaskCreation
 from database.database import Database
+from handlers.menu import process_back_to_main
 
 router = Router()
 db = Database()
@@ -215,10 +216,12 @@ async def process_confirmation(callback: types.CallbackQuery, state: FSMContext)
         await callback.message.edit_text(
             "✅ Задача успешно создана!"
         )
+        await process_back_to_main(callback)
     else:
         await callback.message.edit_text(
             "❌ Произошла ошибка при создании задачи. Пожалуйста, попробуйте позже."
         )
+        await process_back_to_main(callback)
     
     await state.clear()
 
@@ -228,4 +231,5 @@ async def process_cancellation(callback: types.CallbackQuery, state: FSMContext)
     await callback.message.edit_text(
         "❌ Создание задачи отменено."
     )
-    await state.clear() 
+    await state.clear()
+    await process_back_to_main(callback)

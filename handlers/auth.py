@@ -7,11 +7,14 @@ from database import Database
 from handlers.menu import get_main_menu_reply_keyboard, cmd_menu
 from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import re
 from services.group_tasks import GroupTasksManager
 
 router = Router()
 db = Database()
 group_tasks_manager = GroupTasksManager(db)
+
+GROUP_REGEX = r"^[А-ЯЁ]{3,4}б?-\d{4}-\d{2}-\d{2}$"
 
 class AuthStates(StatesGroup):
     waiting_for_full_name = State()
@@ -56,21 +59,56 @@ async def process_full_name(message: types.Message, state: FSMContext):
 
 @router.message(AuthStates.waiting_for_group)
 async def process_group(message: types.Message, state: FSMContext):
+    group_name_raw = message.text
+    
+    group_name_raw = message.text
+    
+    # Нормализация ввода
+    # Удаляем лишние пробелы и заменяем пробелы на дефисы
+    cleaned_name = group_name_raw.strip().replace(" ", "-")
+    
+    # Разбиваем на части по дефису
+    parts = cleaned_name.split("-")
+    
+    # Проверяем, что есть хотя бы одна часть
+    if not parts:
+        await message.answer(
+            "❌ Неверный формат группы. Пожалуйста, введите группу в правильном формате, например, ИВТб-1303-05-00"
+        )
+        return
+    
+    # Обрабатываем первую часть (направление и опционально 'б')
+    first_part = parts[0]
+    normalized_first_part = ""
+    if first_part:
+        # Капитализируем буквы направления
+        normalized_first_part = first_part[:-1].upper() + first_part[-1].lower() if first_part[-1].lower() == 'б' and len(first_part) > 1 else first_part.upper()
+    
+    # Собираем нормализованное имя группы
+    group_name_normalized = normalized_first_part + "-" + "-".join(parts[1:])
+    
+    # Валидация нормализованного ввода
+    if not re.match(GROUP_REGEX, group_name_normalized):
+        await message.answer(
+            "❌ Неверный формат группы. Пожалуйста, введите группу в правильном формате, например, ИВТб-1303-05-00"
+        )
+        # Остаемся в текущем состоянии, чтобы пользователь мог ввести группу снова
+        return
+    
     # Получаем сохраненные данные
     data = await state.get_data()
     full_name = data.get("full_name")
-    group_name = message.text
     
-    # Добавляем студента в базу данных
-    if await db.add_student(message.from_user.id, full_name, group_name):
-        # Добавляем лабораторные работы для студентов ИВТб 1 курса
-        if group_name.startswith("ИВТб-1"):
-            await group_tasks_manager.add_labs_for_new_student(message.from_user.id, group_name)
+    # Добавляем студента в базу данных с нормализованным именем группы
+    if await db.add_student(message.from_user.id, full_name, group_name_normalized):
+        # Добавляем лабораторные работы для студентов ИВТб 1 курса (используем нормализованное имя)
+        if group_name_normalized.startswith("ИВТб-1"): # Используем lowercase 'б' here
+            await group_tasks_manager.add_labs_for_new_student(message.from_user.id, group_name_normalized)
         
         await message.answer(
             f"✅ Авторизация успешно завершена!\n\n"
             f"👤 Ваше имя: {full_name}\n"
-            f"👥 Ваша группа: {group_name}\n\n"
+            f"👥 Ваша группа: {group_name_normalized}\n\n"
             "Теперь вы можете использовать все функции бота."
         )
         # Вызываем команду /menu после успешной авторизации
@@ -97,4 +135,4 @@ async def show_user_info(message: Message):
         f"ФИО: {student.full_name}\n"
         f"Группа: {student.group_name}\n"
         f"ID: {student.user_id}"
-    ) 
+    )
